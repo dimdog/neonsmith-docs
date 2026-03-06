@@ -190,6 +190,49 @@
       display: none;
     }
     .browser-warning.visible { display: block; }
+    .product-buttons {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .product-btn {
+      flex: 1;
+      padding: 0.9rem;
+      font-size: 1rem;
+      font-weight: 600;
+      background: #0f3460;
+      border: 2px solid #2a4a7f;
+      border-radius: 10px;
+      color: #ccc;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .product-btn:hover:not(:disabled) { border-color: #e94560; color: #fff; background: #1a3a60; }
+    .product-btn.selected { border-color: #e94560; background: #2a1a2e; color: #fff; }
+    .firmware-status {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 1rem;
+      min-height: 1.2em;
+    }
+    .firmware-status.ready { color: #4caf50; }
+    .divider {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #555;
+      margin: 0.75rem 0;
+      position: relative;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 42%;
+      height: 1px;
+      background: #2a2a4a;
+    }
+    .divider::before { left: 0; }
+    .divider::after { right: 0; }
   </style>
 </head>
 <body>
@@ -217,14 +260,16 @@
   <!-- Firmware -->
   <div class="card">
     <h2>2. Select Firmware</h2>
+    <div class="product-buttons">
+      <button class="product-btn" id="btnHexCubes" onclick="selectProduct('HexCubes')">HexCubes</button>
+      <button class="product-btn" id="btnHexPanels" onclick="selectProduct('HexPanels')">HexPanels</button>
+    </div>
+    <div class="firmware-status" id="firmwareStatus">Connect a device and select a product above.</div>
+    <div class="divider">or upload manually</div>
     <div class="file-picker">
       <button class="secondary" onclick="document.getElementById('fileInput').click()">Choose .bin file</button>
       <input type="file" id="fileInput" accept=".bin" onchange="fileSelected(this)">
       <span class="file-name" id="fileName">No file selected</span>
-    </div>
-    <div class="offset-row">
-      <label for="flashOffset">Flash offset:</label>
-      <input type="text" id="flashOffset" value="0x0" placeholder="0x0">
     </div>
     <div class="option-row">
       <input type="checkbox" id="eraseFlash">
@@ -271,6 +316,8 @@
     let firmwareFileName = null;
     let isConnected = false;
     let isFlashing = false;
+    let detectedChip = null;   // "ESP32" or "ESP8266"
+    let selectedProduct = null; // "HexCubes" or "HexPanels"
 
     // --------------- Browser Check ---------------
     // navigator.serial requires a secure context (HTTPS or localhost).
@@ -340,8 +387,41 @@
     }
 
     function updateFlashButton() {
-      document.getElementById("btnFlash").disabled = !(isConnected && firmwareData && !isFlashing);
+      const hasPrebuilt = isConnected && detectedChip && selectedProduct;
+      const hasManual = isConnected && firmwareData;
+      document.getElementById("btnFlash").disabled = !(hasPrebuilt || hasManual) || isFlashing;
     }
+
+    function updateFirmwareStatus() {
+      const el = document.getElementById("firmwareStatus");
+      if (firmwareData) {
+        el.textContent = "Manual file loaded: " + firmwareFileName;
+        el.className = "firmware-status ready";
+      } else if (detectedChip && selectedProduct) {
+        el.textContent = "Will flash: " + selectedProduct + "-" + detectedChip + ".bin";
+        el.className = "firmware-status ready";
+      } else if (detectedChip && !selectedProduct) {
+        el.textContent = "Detected " + detectedChip + " — select a product above.";
+        el.className = "firmware-status";
+      } else if (selectedProduct && !detectedChip) {
+        el.textContent = selectedProduct + " selected — connect a device first.";
+        el.className = "firmware-status";
+      } else {
+        el.textContent = "Connect a device and select a product above.";
+        el.className = "firmware-status";
+      }
+    }
+
+    window.selectProduct = function(product) {
+      selectedProduct = product;
+      firmwareData = null;
+      firmwareFileName = null;
+      document.getElementById("fileName").textContent = "No file selected";
+      document.getElementById("btnHexCubes").classList.toggle("selected", product === "HexCubes");
+      document.getElementById("btnHexPanels").classList.toggle("selected", product === "HexPanels");
+      updateFirmwareStatus();
+      updateFlashButton();
+    };
 
     function showProgress(pct) {
       const container = document.getElementById("progressContainer");
@@ -360,17 +440,23 @@
     window.fileSelected = function(input) {
       const file = input.files[0];
       if (!file) return;
+      // Manual upload takes over — clear product selection
+      selectedProduct = null;
+      document.getElementById("btnHexCubes").classList.remove("selected");
+      document.getElementById("btnHexPanels").classList.remove("selected");
       firmwareFileName = file.name;
       document.getElementById("fileName").textContent = file.name + " (" + (file.size / 1024).toFixed(1) + " KB)";
       const reader = new FileReader();
       reader.onload = function(e) {
         firmwareData = new Uint8Array(e.target.result);
         logInfo("Loaded " + file.name + " (" + firmwareData.length + " bytes)");
+        updateFirmwareStatus();
         updateFlashButton();
       };
       reader.onerror = function() {
         logError("Failed to read file.");
         firmwareData = null;
+        updateFirmwareStatus();
         updateFlashButton();
       };
       reader.readAsArrayBuffer(file);
@@ -412,11 +498,15 @@
         if (macStr) chipText += "\nMAC: " + macStr;
         if (flashSizeStr) chipText += "\nFlash: " + flashSizeStr;
 
+        detectedChip = chipType.includes("8266") ? "ESP8266" : "ESP32";
         setConnected(true, chipText);
+        updateFirmwareStatus();
         logSuccess("Connected to " + chipType);
       } catch (err) {
         logError("Connection failed: " + friendlyError(err));
+        detectedChip = null;
         setConnected(false);
+        updateFirmwareStatus();
         cleanup();
       }
     };
@@ -465,16 +555,28 @@
 
     // --------------- Flash ---------------
     window.flashFirmware = async function() {
-      if (!isConnected || !firmwareData || isFlashing) return;
+      const hasPrebuilt = isConnected && detectedChip && selectedProduct;
+      const hasManual = isConnected && firmwareData;
+      if ((!hasPrebuilt && !hasManual) || isFlashing) return;
       isFlashing = true;
       updateFlashButton();
       hideProgress();
 
       const eraseAll = document.getElementById("eraseFlash").checked;
-      const offsetStr = document.getElementById("flashOffset").value.trim() || "0x0";
-      const offset = parseInt(offsetStr, 16) || 0;
+      const offset = 0;
 
       try {
+        // Fetch prebuilt firmware if no manual file loaded
+        if (!firmwareData) {
+          const url = "firmware/" + selectedProduct + "-" + detectedChip + ".bin";
+          logInfo("Fetching " + url + " ...");
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error("Could not fetch firmware (" + resp.status + "): " + url);
+          firmwareData = new Uint8Array(await resp.arrayBuffer());
+          firmwareFileName = url.split("/").pop();
+          logInfo("Downloaded " + firmwareFileName + " (" + firmwareData.length + " bytes)");
+        }
+
         if (eraseAll) {
           logInfo("Erasing entire flash (this may take a while)...");
           showProgress(0);
@@ -482,7 +584,7 @@
           logSuccess("Flash erased.");
         }
 
-        logInfo("Writing " + firmwareFileName + " to 0x" + offset.toString(16) + " ...");
+        logInfo("Writing " + firmwareFileName + " ...");
         showProgress(0);
 
         // Convert firmware data to binary string as expected by esptool-js
@@ -516,6 +618,8 @@
       } catch (err) {
         logError("Flash failed: " + friendlyError(err));
       } finally {
+        // Clear fetched firmware so next flash re-downloads fresh
+        if (selectedProduct) firmwareData = null;
         isFlashing = false;
         updateFlashButton();
       }
