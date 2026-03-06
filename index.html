@@ -614,7 +614,13 @@
 
         showProgress(100);
         logSuccess("Flash complete! Firmware written successfully.");
-        logInfo("You may need to reset the device.");
+        logInfo("Rebooting device...");
+        try {
+          await esploader.hardReset();
+          logSuccess("Device rebooted.");
+        } catch (e) {
+          logInfo("Could not auto-reboot. Unplug and replug the device.");
+        }
       } catch (err) {
         logError("Flash failed: " + friendlyError(err));
       } finally {
