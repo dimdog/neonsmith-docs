@@ -318,6 +318,12 @@
     let isFlashing = false;
     let detectedChip = null;   // "ESP32" or "ESP8266"
     let selectedProduct = null; // "HexCubes" or "HexPanels"
+    let firmwareVersion = null; // from firmware/version.json
+
+    // Fetch version info on load (best-effort)
+    fetch("firmware/version.json").then(r => r.ok ? r.json() : null).then(v => {
+      if (v) firmwareVersion = v;
+    }).catch(() => {});
 
     // --------------- Browser Check ---------------
     // navigator.serial requires a secure context (HTTPS or localhost).
@@ -613,7 +619,10 @@
         });
 
         showProgress(100);
-        logSuccess("Flash complete! Firmware written successfully.");
+        const verStr = firmwareVersion
+          ? " (build " + firmwareVersion.short_sha + ", " + firmwareVersion.built_at.slice(0,10) + ")"
+          : "";
+        logSuccess("Flash complete! " + firmwareFileName + verStr + " written successfully.");
         logInfo("Rebooting device...");
         try {
           await esploader.hardReset();
