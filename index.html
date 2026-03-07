@@ -625,7 +625,11 @@
         logSuccess("Flash complete! " + firmwareFileName + verStr + " written successfully.");
         logInfo("Rebooting device...");
         try {
-          await esploader.hardReset();
+          if (detectedChip === "ESP8266") {
+            await esploader.softReset(false);
+          } else {
+            await esploader.hardReset();
+          }
           logSuccess("Device rebooted.");
         } catch (e) {
           logInfo("Could not auto-reboot. Unplug and replug the device.");
