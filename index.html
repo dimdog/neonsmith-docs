@@ -620,7 +620,7 @@
 
         showProgress(100);
         const verStr = firmwareVersion
-          ? " (build " + firmwareVersion.short_sha + ", " + firmwareVersion.built_at.slice(0,10) + ")"
+          ? " (v" + firmwareVersion.version + ", build " + firmwareVersion.short_sha + ", " + firmwareVersion.built_at.slice(0,10) + ")"
           : "";
         logSuccess("Flash complete! " + firmwareFileName + verStr + " written successfully.");
         logInfo("Rebooting device...");
