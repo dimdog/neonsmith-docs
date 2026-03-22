@@ -569,7 +569,8 @@
       hideProgress();
 
       const eraseAll = document.getElementById("eraseFlash").checked;
-      const offset = 0;
+      // ESP32 app partition starts at 0x10000; ESP8266 at 0x0
+      const offset = (detectedChip && detectedChip.toUpperCase().includes("ESP32")) ? 0x10000 : 0x0;
 
       try {
         // Fetch prebuilt firmware if no manual file loaded
