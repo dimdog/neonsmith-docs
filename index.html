@@ -569,8 +569,10 @@
       hideProgress();
 
       const eraseAll = document.getElementById("eraseFlash").checked;
-      // ESP32 app partition starts at 0x10000; ESP8266 at 0x0
-      const offset = (detectedChip && detectedChip.toUpperCase().includes("ESP32")) ? 0x10000 : 0x0;
+      // Prebuilt ESP32/S3 binaries are merged (bootloader+partitions+app), flash at 0x0
+      // ESP8266 binaries are app-only, also flash at 0x0
+      // Manual uploads use 0x0 (user is responsible for correct binary)
+      const offset = 0x0;
 
       try {
         // Fetch prebuilt firmware if no manual file loaded
