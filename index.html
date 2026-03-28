@@ -504,7 +504,7 @@
         if (macStr) chipText += "\nMAC: " + macStr;
         if (flashSizeStr) chipText += "\nFlash: " + flashSizeStr;
 
-        detectedChip = chipType.includes("8266") ? "ESP8266" : "ESP32";
+        detectedChip = chipType.includes("8266") ? "ESP8266" : chipType.includes("S3") ? "ESP32-S3" : "ESP32";
         setConnected(true, chipText);
         updateFirmwareStatus();
         logSuccess("Connected to " + chipType);
