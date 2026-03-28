@@ -238,6 +238,7 @@
 <body>
   <h1>NeonSmith Flasher</h1>
   <p class="subtitle">Flash firmware to your NeonSmith device via USB</p>
+  <p class="subtitle" id="fwVersion" style="opacity:0.5; font-size:0.8rem;"></p>
 
   <div class="browser-warning" id="browserWarning">
     Web Serial API is not supported in this browser. Please use Google Chrome or Microsoft Edge (version 89+).
@@ -322,7 +323,11 @@
 
     // Fetch version info on load (best-effort)
     fetch("firmware/version.json").then(r => r.ok ? r.json() : null).then(v => {
-      if (v) firmwareVersion = v;
+      if (v) {
+        firmwareVersion = v;
+        const el = document.getElementById("fwVersion");
+        if (el) el.textContent = "Firmware v" + v.version + " (" + v.short_sha + ")";
+      }
     }).catch(() => {});
 
     // --------------- Browser Check ---------------
