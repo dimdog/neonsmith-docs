@@ -317,7 +317,8 @@
     let firmwareFileName = null;
     let isConnected = false;
     let isFlashing = false;
-    let detectedChip = null;   // "ESP32" or "ESP8266"
+    let detectedChip = null;   // "ESP32", "ESP8266", or "ESP32-S3"
+    let detectedFlashMB = null; // flash size in MB (e.g. 4, 16)
     let selectedProduct = null; // "HexCubes" or "HexPanels"
     let firmwareVersion = null; // from firmware/version.json
 
@@ -403,16 +404,24 @@
       document.getElementById("btnFlash").disabled = !(hasPrebuilt || hasManual) || isFlashing;
     }
 
+    function getFirmwareName() {
+      // ESP32-S3 with 16MB+ flash gets the large-flash variant (OPI PSRAM)
+      if (detectedChip === "ESP32-S3" && detectedFlashMB >= 16) {
+        return selectedProduct + "-ESP32-S3-16MB.bin";
+      }
+      return selectedProduct + "-" + detectedChip + ".bin";
+    }
+
     function updateFirmwareStatus() {
       const el = document.getElementById("firmwareStatus");
       if (firmwareData) {
         el.textContent = "Manual file loaded: " + firmwareFileName;
         el.className = "firmware-status ready";
       } else if (detectedChip && selectedProduct) {
-        el.textContent = "Will flash: " + selectedProduct + "-" + detectedChip + ".bin";
+        el.textContent = "Will flash: " + getFirmwareName();
         el.className = "firmware-status ready";
       } else if (detectedChip && !selectedProduct) {
-        el.textContent = "Detected " + detectedChip + " — select a product above.";
+        el.textContent = "Detected " + detectedChip + (detectedFlashMB ? " (" + detectedFlashMB + "MB)" : "") + " — select a product above.";
         el.className = "firmware-status";
       } else if (selectedProduct && !detectedChip) {
         el.textContent = selectedProduct + " selected — connect a device first.";
@@ -503,7 +512,9 @@
 
         const chipType = esploader.chip ? esploader.chip.CHIP_NAME : "Unknown";
         const macStr = await readMac(esploader);
-        const flashSizeStr = await readFlashSize(esploader);
+        const flashSizeRaw = await readFlashSizeRaw(esploader);
+        const flashSizeStr = flashSizeRaw ? (flashSizeRaw >= 1024 ? (flashSizeRaw / 1024) + " MB" : flashSizeRaw + " KB") : null;
+        detectedFlashMB = flashSizeRaw ? Math.floor(flashSizeRaw / 1024) : null;
 
         let chipText = "Chip: " + chipType;
         if (macStr) chipText += "\nMAC: " + macStr;
@@ -535,13 +546,10 @@
       return null;
     }
 
-    async function readFlashSize(loader) {
+    async function readFlashSizeRaw(loader) {
       try {
         const size = await loader.getFlashSize();
-        if (size) {
-          if (size >= 1024) return (size / 1024) + " MB";
-          return size + " KB";
-        }
+        if (size) return size; // returns KB
       } catch (e) { /* ignore */ }
       return null;
     }
@@ -582,7 +590,7 @@
       try {
         // Fetch prebuilt firmware if no manual file loaded
         if (!firmwareData) {
-          const url = "firmware/" + selectedProduct + "-" + detectedChip + ".bin";
+          const url = "firmware/" + getFirmwareName();
           logInfo("Fetching " + url + " ...");
           const resp = await fetch(url);
           if (!resp.ok) throw new Error("Could not fetch firmware (" + resp.status + "): " + url);
