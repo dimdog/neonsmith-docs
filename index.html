@@ -264,6 +264,7 @@
     <div class="product-buttons">
       <button class="product-btn" id="btnHexCubes" onclick="selectProduct('HexCubes')">HexCubes</button>
       <button class="product-btn" id="btnHexPanels" onclick="selectProduct('HexPanels')">HexPanels</button>
+      <button class="product-btn" id="btnHexPanelOld" onclick="selectProduct('HexPanelOld')">HexPanelOld</button>
     </div>
     <div class="firmware-status" id="firmwareStatus">Connect a device and select a product above.</div>
     <div class="divider">or upload manually</div>
@@ -439,6 +440,7 @@
       document.getElementById("fileName").textContent = "No file selected";
       document.getElementById("btnHexCubes").classList.toggle("selected", product === "HexCubes");
       document.getElementById("btnHexPanels").classList.toggle("selected", product === "HexPanels");
+      document.getElementById("btnHexPanelOld").classList.toggle("selected", product === "HexPanelOld");
       updateFirmwareStatus();
       updateFlashButton();
     };
@@ -464,6 +466,7 @@
       selectedProduct = null;
       document.getElementById("btnHexCubes").classList.remove("selected");
       document.getElementById("btnHexPanels").classList.remove("selected");
+      document.getElementById("btnHexPanelOld").classList.remove("selected");
       firmwareFileName = file.name;
       document.getElementById("fileName").textContent = file.name + " (" + (file.size / 1024).toFixed(1) + " KB)";
       const reader = new FileReader();
